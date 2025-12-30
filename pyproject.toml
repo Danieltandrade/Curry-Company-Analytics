@@ -1,0 +1,15 @@
+[project]
+name = "ftc-analisando-dados-com-python"
+version = "0.1.0"
+description = "Projeto de análise de dados com Pandas e Streamlit"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "folium>=0.20.0",
+    "haversine>=2.9.0",
+    "pandas>=2.3.3",
+    "pandas-stubs>=2.3.3.251219",
+    "plotly>=6.5.0",
+    "streamlit>=1.52.2",
+    "streamlit-folium>=0.25.3",
+]
