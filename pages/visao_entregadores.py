@@ -11,7 +11,7 @@ Descrição: Este script inicializa o aplicativo Streamlit e exibe uma mensagem 
 import folium
 import pandas as pd
 import streamlit as st
-from dataframe import dataframe
+from data_cleaning import dataframe
 from config import sidebar
 from plotly import express as px
 from streamlit_folium import st_folium

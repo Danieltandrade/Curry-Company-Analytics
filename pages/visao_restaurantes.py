@@ -10,7 +10,7 @@ Descrição: Este script inicializa o aplicativo Streamlit e exibe uma mensagem 
 # Importando Bibliotecas
 import numpy as np
 import streamlit as st
-from dataframe import dataframe
+from data_cleaning import dataframe
 from config import sidebar
 from haversine import haversine as hs
 from plotly import express as px

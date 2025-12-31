@@ -1,3 +1,9 @@
+"""
+Cria a barra lateral do dashboard utilizando funções do Streamlit.
+A barra lateral inclui uma imagem, um slider para seleção de datas
+e uma caixa de seleção múltipla para condições de trânsito.
+"""
+
 from datetime import datetime
 import streamlit as st
 
@@ -13,6 +19,7 @@ def sidebar(image_path: str) -> tuple[tuple[datetime, datetime], list[str], list
 
     Returns:
         tuple[datetime, list[str]]: Data selecionada e condições de trânsito selecionadas.
+        None: Se ocorrer algum erro.
     """
 
     st.sidebar.image(image_path, width=270)
