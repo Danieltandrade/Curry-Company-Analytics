@@ -4,13 +4,34 @@ Docstring para src.analysis_tools
 
 import folium
 import pandas as pd
+from haversine import haversine as hs
 from plotly import express as px
+import plotly.graph_objects as go
 from streamlit_folium import st_folium
 
-def filtros(df: pd.Series | pd.DataFrame, date_slider: tuple , traffic_options: list, weather_cond: list) -> pd.Series | pd.DataFrame:
-    # Filtro de datas
-    datas_selecionadas = df['Order_Date'] < date_slider[1]
-    df = df.loc[datas_selecionadas, :]
+def filtros(
+    df: pd.Series | pd.DataFrame, 
+    date_slider: tuple , 
+    traffic_options: list, 
+    weather_cond: list, 
+    cities: list) -> pd.Series | pd.DataFrame:
+    """
+    Função para criação dos filtros que serão usados na barra lateral.
+
+    Args:
+        df (pd.Series | pd.DataFrame): Dataframe de entrada
+        date_slider (tuple): Tupla com as datas
+        traffic_options (list): Lista com condições de transito
+        weather_cond (list): Lista com condições climáticas
+        cities (list): Lista com as cidades
+
+    Returns:
+        pd.Series | pd.DataFrame: Dataframe com os filtros aplicados
+    """
+
+# Filtro de datas
+    datas_selecionadas = (df['Order_Date'] >= date_slider[0]) & (df['Order_Date'] <= date_slider[1])
+    df = df.loc[datas_selecionadas, :]    
 
     # Filtro de transito
     transito_selecionado = df['Road_traffic_density'].isin(traffic_options)
@@ -19,6 +40,10 @@ def filtros(df: pd.Series | pd.DataFrame, date_slider: tuple , traffic_options: 
     # Filtro de clima
     clima_selecionado = df['Weatherconditions'].isin(weather_cond)
     df = df.loc[clima_selecionado, :]
+
+    # Filtro de cidades
+    cidades_selecionadas = df['City'].isin(cities)
+    df = df.loc[cidades_selecionadas, :]
 
     return df
 
@@ -238,3 +263,127 @@ def top_entregadores(df: pd.Series | pd.DataFrame, ascending_order: bool) -> pd.
     df_semi = df_result.loc[df_result['City'] == 'Semi-Urban', :].head(10)
 
     return pd.concat([df_metro, df_urban, df_semi]).reset_index(drop=True)
+
+def festival_mean_std(df: pd.Series | pd.DataFrame, cols: list, festival: str, calc: str) -> pd.Series | pd.DataFrame:
+    """
+    Função para calcular a média e desvio padrão de um Dataframe.
+
+    Args:
+        df (pd.Series | pd.DataFrame): Dataframe contendo os dados de entrega
+        cols (list): Colunas selecionadas nos cálculos
+            Obs: 'Time_taken(min)' deve estar na lista de colunas
+        festival (str): String com as palavras 'Yes' ou 'No' para seleção do Festival
+        calc (str): Tipo de cálculo a ser realizado ('Avg_time' ou 'Std_time')
+
+    Returns:
+        pd.Series | pd.DataFrame: Dataframe ou Series resultante
+
+    Examples:
+        cols = ['Time_taken(min)', 'Festival']
+        avg_festival = festival_mean_std(df, cols, 'Yes', 'Avg_time')
+    """
+    df_aux = (
+        df.loc[:, cols]
+        .groupby('Festival')
+        .agg(
+            Avg_time=('Time_taken(min)', 'mean'), 
+            Std_time= ('Time_taken(min)', 'std')
+        )
+        .reset_index()
+    )
+
+    df_aux = df_aux.loc[df_aux['Festival'] == festival, calc]
+    return df_aux
+
+def mean_std_tempo_cidade(df: pd.Series | pd.DataFrame):
+    """
+    Função para criar um gráfico de barras com desvio padrão por tempo por cidade
+
+    Args:
+        df (pd.Series | pd.DataFrame): Dataframe contendo os dados de entrada
+
+    Returns:
+        fig (plotly.graph_objs._figure.Figure): Gráfico de barras
+    """
+
+    df_aux = (
+                    df.loc[:, ['Time_taken(min)', 'City']]
+                    .groupby('City')
+                    .agg(
+                        Avg_time=('Time_taken(min)', 'mean'), 
+                        Std_time= ('Time_taken(min)', 'std')
+                    )
+                    .reset_index()
+    )
+
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Bar(
+            name='Controle',
+            x=df_aux['City'],
+            y=df_aux['Avg_time'],
+            error_y=dict(type='data', 
+            array=df_aux['Std_time'])
+        )
+    )
+
+    fig = fig.update_layout(barmode='group')
+    
+    return fig
+
+def mean_std_dataframe(df: pd.Series | pd.DataFrame, cols: list, cols_groupby: list) -> pd.DataFrame:
+    # Novo DF com média e desvio padrão por cidade e tipo de pedido
+    df1 = (
+        df.loc[:, cols]
+        .groupby(cols_groupby)
+        .agg(
+            Avg_time=('Time_taken(min)', 'mean'), 
+            Std_time= ('Time_taken(min)', 'std')
+        )
+        .reset_index()
+    )
+
+    return df1
+
+def tempo_medio_ent_cidade(df: pd.Series | pd.DataFrame):
+    """
+    Função para cálculo do tempo médio de entregas por cidade
+
+    Args:
+        df (pd.DataFrame): Dataframe de entrada
+
+    Returns:
+        fig (plotly.graph_objs._figure.Figure): Gráfico de pizza com segmento
+
+    Example:
+        fig = tempo_medio_ent_cidade(df)
+    """
+
+    cols = [
+        'Delivery_location_latitude', 
+        'Delivery_location_longitude', 
+        'Restaurant_latitude', 
+        'Restaurant_longitude'
+    ]
+
+    #Realizando o cálculo da distância entre restaurante e local de entrega com apply
+    df['Distance'] = df.loc[:, cols].apply(
+                    lambda x: hs((x[cols[0]], x[cols[1]]), 
+                    (x[cols[2]], x[cols[3]])), 
+                    axis=1
+    )
+
+    media_dist = df.loc[:, ['City', 'Distance']].groupby('City').mean().reset_index()
+
+    fig = go.Figure(
+        data=[go.Pie(
+            labels=media_dist['City'], 
+            values=media_dist['Distance'], 
+            pull=[0, 0.1, 0]
+            )
+        ]
+    )
+
+    return fig
+                

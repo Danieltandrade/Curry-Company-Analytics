@@ -8,7 +8,7 @@ from datetime import datetime
 import streamlit as st
 
 
-def sidebar(image_path: str) -> tuple[tuple[datetime, datetime], list[str], list[str]]:
+def sidebar(image_path: str) -> tuple[tuple[datetime, datetime], list[str], list[str], list[str]]:
     """
     Cria a barra lateral do dashboard utilizando funções do Streamlit.
     A barra lateral inclui uma imagem, um slider para seleção de datas
@@ -19,6 +19,9 @@ def sidebar(image_path: str) -> tuple[tuple[datetime, datetime], list[str], list
 
     Returns:
         tuple[datetime, list[str]]: Data selecionada e condições de trânsito selecionadas.
+        list[str]: Lista de Strings com opções de transito
+        list[str]: Lista de Strings com opções climáticas
+        list[str]: Lista de Strings com opções de cidades
         None: Se ocorrer algum erro.
     """
 
@@ -41,21 +44,31 @@ def sidebar(image_path: str) -> tuple[tuple[datetime, datetime], list[str], list
     traffic_options = st.sidebar.multiselect(
         "Condições de Trânsito",
         ["Low", "Medium", "High", "Jam"],
-        default=["Low", "Medium", "High", "Jam"]
+        default=["Low", "Medium", "High", "Jam"],
+        width='stretch'
     )
 
     st.sidebar.markdown("""---""")
 
-    opcoes = ['Cloudy', 'Fog', 'Sandstorms', 'Storms', 'Sunny', 'Windy']
-    opcoes_climaticas = st.sidebar.segmented_control(
+    opcoes_wet_cond = ['Cloudy', 'Fog', 'Sandstorms', 'Storms', 'Sunny', 'Windy']
+    wet_cond_options = st.sidebar.multiselect(
         "Cindições Climáticas", 
-        opcoes, 
-        selection_mode="multi", 
-        default=opcoes, 
+        opcoes_wet_cond,
+        default=opcoes_wet_cond, 
+        width='stretch'
+    )
+
+    st.sidebar.markdown("""---""")
+
+    opcoes_city = ['Metropolitian', 'Semi-Urban', 'Urban']
+    cities_options = st.sidebar.multiselect(
+        "Cidades",
+        opcoes_city,
+        default=opcoes_city,
         width='stretch'
     )
 
     st.sidebar.markdown("""---""")
     st.sidebar.markdown("Powered by Daniel Torres de Andrade")
 
-    return date_slider, traffic_options, opcoes_climaticas
+    return date_slider, traffic_options, wet_cond_options, cities_options
