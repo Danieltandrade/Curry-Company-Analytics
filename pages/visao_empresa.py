@@ -52,7 +52,6 @@ def main():
     # Aplicando os filtros no dataframe
     df = filtros(df, date_slider, traffic_options, weather_cond)
 
-
     # Criando abas para diferentes visões
     tab1, tab2, tab3 = st.tabs(['Visão Gerencial', 'Visão Tática', 'Visão Geográfica'])
 

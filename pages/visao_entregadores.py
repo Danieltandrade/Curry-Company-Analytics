@@ -8,18 +8,38 @@ Descrição: Este script inicializa o aplicativo Streamlit e exibe uma mensagem 
 """
 
 # Importando Bibliotecas
-import folium
-import pandas as pd
+import logging
 import streamlit as st
-from data_cleaning import dataframe
-from config import sidebar
-from plotly import express as px
-from streamlit_folium import st_folium
+import pandas as pd
+import os
+import sys
+from pathlib import Path
+
+# Adiciona a raiz do projeto ao sys.path para garantir que o python encontre o 'src'
+project_root = os.path.join(os.path.dirname(__file__), '..')
+sys.path.append(project_root)
+
+# --- IMPORTS DO SEU PROJETO ---
+from src.analysis_tools import filtros, avaliacao_media_desvio_padrao, top_entregadores
+from src.data_cleaning import df_cleaning
+from src.sider import sidebar
+from src.log_config import setup_logging
+
+# Inicializa o logger
+setup_logging()
+logger = logging.getLogger(__name__)
 
 def main():
-    # Carregando dados e criando o DataFrame
-    path = 'data/train.csv'
-    df = dataframe(path, df_clean=True)
+    # Define a raiz do projeto dinamicamente
+    ROOT_DIR = Path(__file__).parent.parent
+    DATA_PATH = ROOT_DIR / 'data' / 'raw' / 'train.csv'
+
+    # Carregando e limpando os dados
+    df = df_cleaning(str(DATA_PATH), df_clean=True)
+
+    if df is None:
+        st.error("Erro ao carregar os dados. Verifique os logs para mais detalhes.")
+        return
 
     # Criando a barra lateral
     image_path = 'images/logo.png'
@@ -29,25 +49,15 @@ def main():
     st.set_page_config(page_title="Marketplace - Cury Company", layout="wide")
     st.title("Marketplace - Visão Entregadores")
 
-    # Filtro de datas
-    datas_selecionadas = df['Order_Date'] < date_slider
-    df = df.loc[datas_selecionadas, :]
-
-    # Filtro de transito
-    transito_selecionado = df['Road_traffic_density'].isin(traffic_options)
-    df = df.loc[transito_selecionado, :]
-
-    # Filtro de clima
-    clima_selecionado = df['Weatherconditions'].isin(weather_cond)
-    df = df.loc[clima_selecionado, :]
-    st.markdown(f"Clima: {weather_cond}")
+    # Aplicando os filtros no dataframe
+    df = filtros(df, date_slider, traffic_options, weather_cond)
 
     st.markdown("""---""")
 
     with st.container():
-        st.title("Métricas Gerais")
+        st.title("Métricas Gerais", text_alignment='center')
 
-        col1, col2, col3, col4 = st.columns(4, gap='large', border=True)
+        col1, col2, col3, col4 = st.columns(4, gap='large', border=True, width='stretch')
 
         with col1:
 
@@ -69,83 +79,55 @@ def main():
     st.markdown("""---""")
 
     with st.container():
-        st.title("Avaliações")
+        st.title("Avaliações", text_alignment='center')
 
-        col1, col2 = st.columns(2, gap='large', border=True)
+        col1, col2 = st.columns(2, gap='medium', border=True)
 
         with col1:
-            st.markdown("### Avaliação Média por Entregador")
-            cols = ['Delivery_person_Ratings', 'Delivery_person_ID']
+            st.markdown("### Avaliação Média por Entregador", text_alignment='center')
 
-            df_avg_rat_del = df.loc[:, cols].groupby('Delivery_person_ID').mean().reset_index()
+            df_avg_rat_del = (
+                df.loc[:, ['Delivery_person_Ratings', 'Delivery_person_ID']]
+                .groupby('Delivery_person_ID')
+                .mean()
+                .reset_index()
+            )
+
             st.dataframe(df_avg_rat_del)
-        with col2:
-            st.markdown("### Avaliação Média por Transito")
-            cols = ['Delivery_person_Ratings', 'Road_traffic_density']
 
-            # Agrupamento por trânsito
-            df_avg_std_rating_by_traf = (df.loc[:, cols]
-                                    .groupby('Road_traffic_density')
-                                    .agg({'Delivery_person_Ratings': ['mean', 'std']})
-                                )
-            df_avg_std_rating_by_traf.columns = ['Delivery_mean', 'Delivery_std']
-            df_avg_std_rating_by_traf = df_avg_std_rating_by_traf.reset_index()
+        with col2:
+            st.markdown("### Avaliação Média por Transito", text_alignment='center')
+
+            # Agrupamento por transito
+            df_avg_std_rating_by_traf = avaliacao_media_desvio_padrao(df, 'Road_traffic_density')
             st.dataframe(df_avg_std_rating_by_traf)
 
-            st.markdown("### Avaliação Média por Clima")
-            cols = ['Delivery_person_Ratings', 'Weatherconditions']
+            st.markdown("### Avaliação Média por Clima", text_alignment='center')
 
             # Agrupamento por clima
-            df_avg_std_rating_by_wet = (df.loc[:, cols]
-                                        .groupby('Weatherconditions')
-                                        .agg({'Delivery_person_Ratings': ['mean', 'std']})
-                                    )
-            df_avg_std_rating_by_wet.columns = ['Delivery_mean', 'Delivery_std']
-            df_avg_std_rating_by_wet = df_avg_std_rating_by_wet.reset_index()
+            df_avg_std_rating_by_wet = avaliacao_media_desvio_padrao(df, 'Weatherconditions')
             st.dataframe(df_avg_std_rating_by_wet)
 
     st.markdown("""---""")
 
     with st.container():
-        st.title("Velocidade de Entrega")
-
-        col1, col2 = st.columns(2, gap='large', border=True)
+        st.title("Velocidade de Entrega", text_alignment='center')
+        
+        col1, col2 = st.columns(2, gap='medium', border=True)
 
         with col1:
-            st.markdown("#### Top Entregadores mais Rápidos por Cidade")
-            cols = ['Delivery_person_ID', 'City', 'Time_taken(min)']
-
-            # Agrupamento por entregadores mais rápidos por cidade
-            df_aux = (df.loc[:, cols]
-                        .groupby(['City', 'Delivery_person_ID'])
-                        .mean()
-                        .sort_values(['City', 'Time_taken(min)'], ascending=True)
-                        .reset_index()
-                    )
-            df2 = df_aux.loc[df_aux['City'] == 'Metropolitian', :].head(10)
-            df3 = df_aux.loc[df_aux['City'] == 'Semi-Urban', :].head(10)
-            df4 = df_aux.loc[df_aux['City'] == 'Urban', :].head(10)
-
-            df_delivery_fast_by_city = pd.concat([df2, df3, df4]).reset_index(drop=True)
-            st.dataframe(df_delivery_fast_by_city)
+            st.markdown("#### Top Entregadores mais Rápidos")
+            # ascending=True -> Menor tempo (Mais rápido)
+            df_fastest = top_entregadores(df, ascending_order=True)
+            st.dataframe(df_fastest)
 
         with col2:
-            st.markdown("#### Top Entregadores mais Lentos por Cidade")
-            cols = ['Delivery_person_ID', 'City', 'Time_taken(min)']
+            st.markdown("#### Top Entregadores mais Lentos")
+            # ascending=False -> Maior tempo (Mais lento)
+            df_slowest = top_entregadores(df, ascending_order=False)
+            st.dataframe(df_slowest)
 
-            # Agrupamento por entregadores mais lentos por cidade
-            df_aux = (df.loc[:, cols]
-                        .groupby(['City', 'Delivery_person_ID'])
-                        .mean()
-                        .sort_values(['City', 'Time_taken(min)'], ascending=False)
-                        .reset_index()
-                    )
-            df2 = df_aux.loc[df_aux['City'] == 'Metropolitian', :].head(10)
-            df3 = df_aux.loc[df_aux['City'] == 'Semi-Urban', :].head(10)
-            df4 = df_aux.loc[df_aux['City'] == 'Urban', :].head(10)
-
-            df_delivery_slow_by_city = pd.concat([df2, df3, df4]).reset_index(drop=True)
-            st.dataframe(df_delivery_slow_by_city)
+    st.markdown("""---""")
 
 if __name__ == "__main__":
     main()

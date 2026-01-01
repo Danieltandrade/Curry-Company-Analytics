@@ -150,6 +150,7 @@ def pedidos_por_ent_semana(df: pd.Series | pd.DataFrame):
     return fig
 
 def mapa_entregas(df: pd.Series | pd.DataFrame) -> None:
+
     cols6 = ['City', 'Road_traffic_density', 'Delivery_location_latitude', 'Delivery_location_longitude']
 
     df_aux = df.loc[:, cols6].groupby(['City', 'Road_traffic_density']).median().reset_index()
@@ -173,3 +174,67 @@ def mapa_entregas(df: pd.Series | pd.DataFrame) -> None:
     st_folium(mapa, width=1024, height=600)
 
     return None
+
+def avaliacao_media_desvio_padrao(df: pd.Series | pd.DataFrame, coluna: str) -> pd.DataFrame:
+    """
+    Função para criar um Dataframe com média e desvio padrão dos entregadores
+
+    Args:
+        df (pd.Series | pd.DataFrame): Dataframe contendo os dados dos entregadores
+        coluna (str): String com nome da coluna a ser avaliada
+
+    Returns:
+        pd.DataFrame: Dataframe com média e desvio padrão
+    
+    Examples:
+        df_result = avaliacao_media_desvio_padrao(df, 'Road_traffic_density')
+        df_result = avaliacao_media_desvio_padrao(df, 'Weatherconditions')
+    """
+
+    df_avg_std_rating = (
+        df.loc[:, ['Delivery_person_Ratings', coluna]]
+        .groupby(coluna)
+        .agg(
+            Delivery_mean=('Delivery_person_Ratings', 'mean'), 
+            Delivery_std=('Delivery_person_Ratings', 'std')
+        )
+        .reset_index()
+    )
+
+    return df_avg_std_rating
+
+def top_entregadores(df: pd.Series | pd.DataFrame, ascending_order: bool) -> pd.DataFrame:
+    """
+    Função para criar Dataframe com os entregadores mais rápidos e mais lentos por cidade.
+
+    Args:
+        df (pd.Series | pd.DataFrame): Dataframe contendo os dados dos entregadores
+        ascending_order (bool): 
+            ascending=True -> Menor tempo (Mais rápido)
+            ascending=False -> Maior tempo (Mais lento)
+
+    Returns:
+        pd.DataFrame: Dataframe com melhores/piores tempos de entrega por cidade
+
+    Examples:
+        df_fastest = top_entregadores(df, ascending_order=True)
+        df_slowest = top_entregadores(df, ascending_order=False)
+    """
+
+    df_result = (
+                df.loc[:, ['Delivery_person_ID', 'City', 'Time_taken(min)']]
+                .groupby(['City', 'Delivery_person_ID'])
+                .mean()
+                .reset_index()
+                .sort_values(
+                    by=['City', 'Time_taken(min)'], 
+                    ascending=[True, ascending_order]
+                )
+    )
+
+    # Filtra os 10 primeiros de cada cidade
+    df_metro = df_result.loc[df_result['City'] == 'Metropolitian', :].head(10)
+    df_urban = df_result.loc[df_result['City'] == 'Urban', :].head(10)
+    df_semi = df_result.loc[df_result['City'] == 'Semi-Urban', :].head(10)
+
+    return pd.concat([df_metro, df_urban, df_semi]).reset_index(drop=True)
