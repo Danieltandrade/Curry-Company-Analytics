@@ -54,7 +54,7 @@ O projeto foi estruturado da seguinte maneira:
 Abaixo será apresentado a estrutura completa do projeto:
 
 ```bash
-FTC - Analisando Dados com Python
+project_root
 ├── data
 │   ├── processed
 │   └── raw
