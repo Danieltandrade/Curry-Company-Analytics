@@ -40,9 +40,8 @@ def main():
 
     # Verifica se a chave 'logged_empresarial' já existe na sessão do usuário.
     # Se não existir, loga e cria a chave. Se existir, pula o log.
-    if 'logged_empresarial' not in st.session_state:
-        logger.info("Usuário acessou a pagina Visão Empresarial.")
-        st.session_state['logged_empresarial'] = True
+
+    logger.info("Usuário acessou a pagina Visão Empresarial.")
     
     st.title("Marketplace - Visão Empresarial")
 

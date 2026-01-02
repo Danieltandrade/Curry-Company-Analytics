@@ -14,4 +14,3 @@ env/
 
 # Ignorar arquivos de log
 *.log
-logs/

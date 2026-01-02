@@ -1,6 +1,6 @@
 [project]
-name = "ftc-analisando-dados-com-python"
-version = "0.1.0"
+name = "Curry-Company-Analytics"
+version = "1.0.0"
 description = "Projeto de análise de dados com Pandas e Streamlit"
 readme = "README.md"
 requires-python = ">=3.13"
